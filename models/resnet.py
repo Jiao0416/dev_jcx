@@ -178,11 +178,12 @@ class ResNet(nn.Module):
         feat5   = self.layer4(feat4)
         return [feat1, feat2, feat3, feat4, feat5]
 
+
 def resnet50(pretrained=False, **kwargs):
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url('https://s3.amazonaws.com/pytorch/models/resnet50-19c8e357.pth', model_dir='weight'), strict=False)
-        # model.load_state_dict(torch.load('weight/resnet50-19c8e357.pth'), strict=False)
+        # model.load_state_dict(model_zoo.load_url('https://s3.amazonaws.com/pytorch/models/resnet50-19c8e357.pth', model_dir='weight'), strict=False)
+        model.load_state_dict(torch.load('weight/resnet50-19c8e357.pth'), strict=False)
     del model.avgpool
     del model.fc
     return model

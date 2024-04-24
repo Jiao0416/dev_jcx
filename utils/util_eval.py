@@ -21,7 +21,8 @@ from utils.util_metrics import compute_mIoU
 
 
 class Evaluator(object):
-    def __init__(self, input_shape, num_classes, device, image_lines, dataset_path, log_dir, total_epoch: int, eval_flag=True,
+    def __init__(self, input_shape, num_classes, device, image_txt_path, dataset_path, log_dir, total_epoch: int,
+                 eval_flag=True,
                  miou_out_path=".temp_miou_out"):
         super(Evaluator, self).__init__()
 
@@ -36,9 +37,14 @@ class Evaluator(object):
         self.total_epoch = total_epoch
         self.epoch_list = generate_save_epoch(total_epoch)
 
+        with open(os.path.join(dataset_path, image_txt_path), "r") as f:
+            image_lines = f.readlines()
+
         self.image_ids = [image_id.split()[0] for image_id in image_lines]
         self.mious = [0]
-        self.epoches = [0]
+        self.epochs = [0]
+        self.mPrecision = [0]
+        self.mRecall = [0]
         if self.eval_flag:
             with open(os.path.join(self.log_dir, "epoch_mIoU.txt"), 'a') as f:
                 f.write(str(0))
@@ -92,7 +98,7 @@ class Evaluator(object):
         return image
 
     def on_epoch_end(self, epoch, model_eval, classes_eval=None, draw_info=True):
-        ACC = 0.0
+        mIoU = 0.0
         if ((epoch in self.epoch_list) or epoch == self.total_epoch - 1) and self.eval_flag:
             self.net = model_eval
             gt_dir = os.path.join(self.dataset_path, "SegmentationClass/")
@@ -116,32 +122,38 @@ class Evaluator(object):
 
             print("Calculate mIoU.")
             # 执行计算mIoU的函数
-            _, IoUs, PA_Recall, Precision, Accuracy = compute_mIoU(gt_dir, pred_dir, self.image_ids, self.num_classes,
-                                                                   classes_eval, save_info=self.log_dir)
+            _, IoUs, PA_Recall, Precision = compute_mIoU(gt_dir, pred_dir, self.image_ids, self.num_classes,
+                                                         classes_eval, save_info=self.log_dir)
             temp_miou = np.nanmean(IoUs) * 100
-            ACC = Accuracy
+            temp_mPrecision = round(np.nanmean(Precision) * 100, 2)
+            temp_mPA = round(np.nanmean(PA_Recall) * 100, 2)
+            mIoU = temp_miou
 
             self.mious.append(temp_miou)
-            self.epoches.append(epoch)
+            self.mPrecision.append(temp_mPrecision)
+            self.mRecall.append(temp_mPA)
+            self.epochs.append(epoch)
 
             with open(os.path.join(self.log_dir, "epoch_mIoU.txt"), 'a') as f:
-                f.write("epoch: {}, \tmIoU: {}, \tAccuracy:{}%\n\n".format(epoch, str(temp_miou), Accuracy))
+                f.write("epoch: {}, \tmIoU: {}, \tmPA_Recall:{}%, \tmPrecision:{}%\n\n"
+                        .format(epoch, str(temp_miou), str(temp_mPA), str(temp_mPrecision)))
 
             if draw_info:
                 plt.figure()
-                plt.plot(self.epoches, self.mious, 'red', linewidth=2, label='train mIoU')
+                plt.plot(self.epochs, self.mious, 'MediumPurple', marker='^', linestyle='-', label='mIoU', zorder=3)
+                plt.plot(self.epochs, self.mPrecision, '#FF6A6A', marker='*', linestyle='-', label='mPrecision', zorder=2)
+                plt.plot(self.epochs, self.mRecall, '#C1CDC1', marker='.', linestyle='-', label='mRecall', zorder=1)
 
                 plt.grid(True)
-                plt.xlabel('Epoch')
-                plt.ylabel('mIoU')
-                plt.title('A mIoU Curve')
-                plt.legend(loc="upper right")
-
+                plt.xlabel('Epochs')
+                plt.ylabel('Metrics')
+                plt.title('Metrics Curve')
+                plt.legend()
                 plt.savefig(os.path.join(self.log_dir, "epoch_mIoU.png"))
-                # plt.cla()
-                # plt.close("all")
+                plt.cla()
+                plt.close("all")
 
             print("Get mIoU done.")
             shutil.rmtree(self.miou_out_path)
-        # 返回当前 epoch的准确率
-        return ACC
+        # 返回当前 epoch的mIoU
+        return mIoU

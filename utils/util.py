@@ -5,20 +5,25 @@
 @Create: 2024/3/23 19:39
 @Message: null
 """
+import math
 import os
 import random
-
 import numpy as np
 
-# CLASSES = ["_background_","aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow",
-#            "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 import torch
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib import pyplot as plt
 
-CLASSES = ["background", "H", "T1", "T2", "T3", "T4", "T5"]
+# CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow",
+#            "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+# CLASSES_NAME = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+#                 "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 
-CLASSES_NAME = ["H", "T1", "T2", "T3", "T4", "T5"]
+# CLASSES = ["background", "H", "T1", "T2", "T3", "T4", "T5"]
+# CLASSES_NAME = ["H", "T1", "T2", "T3", "T4", "T5"]
+
+CLASSES = ["background", "H", "T1", "T2"]
+CLASSES_NAME = ["H", "T1", "T2"]
 
 COLORS_CV = [
     (0, 0, 0), (128, 0, 0), (0, 128, 0), (128, 128, 0), (0, 0, 128), (128, 0, 128), (0, 128, 128), (128, 128, 128),
@@ -43,7 +48,9 @@ def set_random_seed(seed=42):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+    # torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
     print('You have chosen to seed training. This will slow down your training!')
 
 
@@ -151,7 +158,7 @@ def draw_filled_rectangle(draw,
     height = rectangle_size
 
     # 计算矩形的右下角坐标
-    x1, y1 = x + width, y + height//2
+    x1, y1 = x + width * 1.5, y + height
 
     # 绘制填充的彩色矩形
     draw.rectangle([rectangle_position, (x1, y1)], fill=rectangle_color)
@@ -159,7 +166,7 @@ def draw_filled_rectangle(draw,
 
 
 def add_info_to_image(image,
-                      scale_factor: int = 20,
+                      scale_factor: int = 23,
                       font_color: tuple = (0, 0, 0),
                       colors=None,
                       name_classes=None):
@@ -178,54 +185,82 @@ def add_info_to_image(image,
         name_classes = CLASSES_NAME
 
     w, h = image.size
-    unit = w // scale_factor
-    distance = (w - unit * 2) // len(name_classes)
+    min_size = min(w, h)
+    unit = min_size // scale_factor
+    # distance = (h - unit * 2) // len(name_classes)
+    distance = unit
     # 自适应字体大小
-    font_size = unit
+    font_size = unit // 1.2
     # 字体位置：底部
-    x, y = (unit, h - font_size)
+    x, y = (unit//3, unit)
     draw = ImageDraw.Draw(image)
 
-    font = ImageFont.truetype("utils/arial.ttf", size=font_size)
+    font = ImageFont.truetype(font="utils/arial.ttf", size=font_size, index=0)
 
     for i in range(len(name_classes)):
-        text = name_classes[i]
-        position = (x, y - unit)
-        position_text = (x, y)
+        text = " " + name_classes[i]
+        position = (x, y)
+        position_text = (x + unit * 1.5 + 4, y + unit//8)
         rectangle_size = unit
         draw = draw_filled_rectangle(draw, position, rectangle_size, rectangle_color=colors[i])
         draw.text(position_text, text, font=font, fill=font_color)
-        x = x + distance
+        y = y + distance + 4
 
     return image
 
 
-def save_info_when_training(train_loss, val_loss, val_acc, lr_list, save_path='', save=True):
+def save_info_when_training(train_loss, val_loss, lr_list, save_path='', save=True):
     X = range(0, len(train_loss))
     y_train = train_loss
-    plt.figure(figsize=(12, 7), dpi=200)
-    plt.subplot(1, 3, 1)
-    plt.plot(X, lr_list, 'y.-', label='lr')
+    plt.figure(figsize=(9, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(X, lr_list, color='green', linestyle='-', marker='.', label='lr')
     plt.title('lr vs epochs item')
-    plt.ylabel('lr')
+    plt.ylabel('Lr')
+    plt.xlabel('Epochs')
+    plt.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+    plt.legend()
+    plt.grid(True)
 
     x_loss = range(0, len(val_loss))
-    plt.subplot(1, 3, 2)
-    plt.plot(x_loss, y_train, 'b.-', label='train')
+    plt.subplot(1, 2, 2)
+    plt.plot(x_loss, y_train, 'red', linestyle='-', marker='.', label='train')
     plt.title('train/val loss vs epochs item')
-    plt.ylabel('train/val loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epochs')
     y_val = val_loss
-    plt.plot(X, y_val, 'r.-', label='val')
+    plt.plot(X, y_val, 'SteelBlue', linestyle='-', marker='.', label='val')
     plt.legend()
+    plt.grid(True)
 
-    x_acc = range(0, len(val_acc))
-    plt.subplot(1, 3, 3)
-    plt.plot(x_acc, val_acc, 'g.-', label='val')
-    plt.title('val f_score vs epochs item')
-    plt.ylabel('val f_score')
-
+    # x_acc = range(0, len(val_acc))
+    # plt.subplot(1, 3, 3)
+    # plt.plot(x_acc, val_acc, 'g.-', label='val')
+    # plt.title('val f_score vs epochs item')
+    # plt.ylabel('val f_score')
+    # plt.grid(True)
+    # # 设置 Y 轴范围从 0 到最大值
+    # max_value = max(val_acc) * 1.1
+    # plt.ylim(0, max_value)
     plt.tight_layout()
     if save:
-        plt.savefig(save_path + '/train_info.png')
+        plt.savefig(save_path + '/epoch_loss.png')
     else:
         plt.show()
+    plt.cla()
+    plt.close("all")
+
+
+def set_optimizer_lr(optimizer, current_epoch, max_epochs, warmup_epochs=10, max_lr=0.1, min_lr=0.000001, lr_type="warmup_cosine"):
+    if lr_type == "warmup_cosine":
+        if current_epoch < warmup_epochs:
+            lr = max_lr * current_epoch / warmup_epochs + min_lr
+        else:
+            lr = min_lr + (max_lr - min_lr) * (
+                        1 + math.cos(math.pi * (current_epoch - warmup_epochs) / (max_epochs - warmup_epochs))) / 2
+    else:
+        raise ValueError("Unsupported lr type for {}".format(lr_type))
+
+    # 基于计算出的学习率进行赋值
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = lr

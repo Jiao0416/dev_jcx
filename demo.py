@@ -11,6 +11,7 @@ import shutil
 
 import numpy as np
 import torch
+from PIL import Image
 from torch.optim.lr_scheduler import CosineAnnealingLR,CosineAnnealingWarmRestarts,StepLR
 import torch.nn as nn
 from torchvision.models import resnet18
@@ -24,16 +25,30 @@ if __name__ == "__main__":
     np.random.seed(42)
     torch.manual_seed(42)
 
-    # 创建示例张量，维度为 (1, 262144, 7)
-    temp_tp = torch.randn(2, 4)
-    print(temp_tp)
-
-    # 对维度 0 和维度 1 进行求和
-    sum_result = torch.sum(temp_tp, dim=1)
-
-    print("原始张量形状:", temp_tp.shape)
-    print("对维度 0 和 1 求和后的结果形状:", sum_result.shape)
-    print(sum_result)
+    freeze = False
+    print(freeze)
+    flag = not freeze
+    print(flag)
+    # mask_name = "../dataset/isic2017/trainval/masks/ISIC_0012099_segmentation.png"
+    # png = Image.open(mask_name)
+    # png.save("png.png")
+    # temp_png = np.array(png)
+    # modify_png = np.zeros_like(temp_png)
+    # modify_png[temp_png <= 127] = 0
+    # modify_png[temp_png > 127] = 1
+    # modify_png = modify_png*255
+    # new_png = Image.fromarray(modify_png)
+    # new_png.save("new_png.png")
+    # # 创建示例张量，维度为 (1, 262144, 7)
+    # temp_tp = torch.randn(2, 4)
+    # print(temp_tp)
+    #
+    # # 对维度 0 和维度 1 进行求和
+    # sum_result = torch.sum(temp_tp, dim=1)
+    #
+    # print("原始张量形状:", temp_tp.shape)
+    # print("对维度 0 和 1 求和后的结果形状:", sum_result.shape)
+    # print(sum_result)
 
     # raise ValueError("数据集过小，无法继续进行训练，请扩充数据集。")
 
